@@ -102,7 +102,7 @@ export default function LandingPage() {
           {isSignedIn ? (
             <>
               <a href="/analyse" className="nav-btn nav-btn-outline">Dashboard</a>
-              <UserButton afterSignOutUrl="/" />
+              <UserButton />
             </>
           ) : (
             <>

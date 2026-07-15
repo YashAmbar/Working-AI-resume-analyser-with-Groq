@@ -108,7 +108,7 @@ export default function CoverLetterPage() {
           <a href="/" className="nav-link">Resume Analyser</a>
           <a href="/cover-letter" className="nav-link active">Cover Letter</a>
           <a href="/history" className="nav-link">History</a>
-          <UserButton afterSignOutUrl="/sign-in" />
+          <UserButton />
         </div>
       </nav>
 
