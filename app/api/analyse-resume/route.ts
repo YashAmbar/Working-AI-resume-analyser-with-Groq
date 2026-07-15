@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
+import { auth, currentUser } from '@clerk/nextjs/server';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(req: NextRequest) {
   try {
     console.log('=== ANALYSE ROUTE HIT ===');
+
+    const { userId } = await auth();
+    console.log('User ID:', userId);
+
+    if (!userId) {
+      return NextResponse.json({ error: 'Not logged in' }, { status: 401 });
+    }
 
     const apiKey = process.env.GROQ_API_KEY;
     console.log('API Key:', apiKey ? 'FOUND' : 'MISSING');
@@ -12,16 +21,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
     }
 
-    let body;
-    try {
-      body = await req.json();
-      console.log('Resume text length:', body?.resumeText?.length ?? 'undefined');
-    } catch (e) {
-      console.error('Failed to parse request body:', e);
-      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
-    }
-
-    const { resumeText } = body;
+    const body = await req.json();
+    const { resumeText, fileName } = body;
+    console.log('Resume text length:', resumeText?.length);
 
     if (!resumeText) {
       return NextResponse.json({ error: 'No resume text provided' }, { status: 400 });
@@ -29,7 +31,6 @@ export async function POST(req: NextRequest) {
 
     console.log('Calling Groq API...');
     const client = new Groq({ apiKey });
-
     const completion = await client.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: [
@@ -60,6 +61,38 @@ ${resumeText}`,
 
     const clean = raw.replace(/```json|```/g, '').trim();
     const analysis = JSON.parse(clean);
+    console.log('Analysis parsed successfully, score:', analysis.score);
+
+    // Save to database
+    try {
+      console.log('Saving to database...');
+      const user = await currentUser();
+      const email = user?.emailAddresses[0]?.emailAddress || '';
+
+      const dbUser = await prisma.user.upsert({
+        where: { clerkId: userId },
+        update: {},
+        create: { clerkId: userId, email },
+      });
+      console.log('DB User:', dbUser.id);
+
+      const saved = await prisma.analysis.create({
+        data: {
+          userId: dbUser.id,
+          fileName: fileName || 'resume.pdf',
+          score: analysis.score,
+          experienceYears: analysis.experience_years,
+          topSkills: analysis.top_skills,
+          strengths: analysis.strengths,
+          gaps: analysis.gaps,
+          summary: analysis.summary,
+        },
+      });
+      console.log('✅ Analysis saved to database! ID:', saved.id);
+
+    } catch (dbError) {
+      console.error('❌ DATABASE ERROR:', dbError);
+    }
 
     return NextResponse.json({ analysis });
 
