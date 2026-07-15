@@ -127,7 +127,7 @@ export default function AnalysePage() {
           <a href="/analyse" className="nav-link active">Resume Analyser</a>
           <a href="/cover-letter" className="nav-link">Cover Letter</a>
           <a href="/history" className="nav-link">History</a>
-          <UserButton afterSignOutUrl="/" />
+          <UserButton />
         </div>
       </nav>
 
